@@ -235,6 +235,7 @@ class Text2Seg():
             text_prompt = [text_prompt]
         # predict
         boxes_lst = []
+        label_list = []
         for prompt in text_prompt:
             boxes, logits, phrases = predict(
                 model=self.groundingDINO,
@@ -245,6 +246,8 @@ class Text2Seg():
             )
             annotated_frame = annotate(image_source=image_source, boxes=boxes, logits=logits, phrases=phrases)
             boxes_lst.extend(boxes)
+            for j in range(len(boxes)):
+                label_list.append(prompt)
         
         boxes_lst = torch.stack(boxes_lst)
         self.sam_predictor.set_image(image_source)
@@ -256,13 +259,14 @@ class Text2Seg():
             point_coords = None,
             point_labels = None,
             boxes = transformed_boxes,
-            multimask_output = False,
+            multimask_output = True,
         )
         
-        masks = ((masks.sum(dim=0)>0)[0]*1).cpu().numpy()
-        annotated_frame_with_mask = draw_mask(masks, image_source)
-
-        return masks, annotated_frame_with_mask, annotated_frame
+        masks_all = ((masks.sum(dim=0)>0)[0]*1).cpu().numpy()   # masks.sum(dim=0)>0 -> [3, 1024, 1024]
+        annotated_frame_with_mask = draw_mask(masks_all, image_source)  # [1024,1024]
+        annotated_frame_with_mask_all = draw_mask_multi(masks, image_source, label_list)
+        
+        return masks, annotated_frame_with_mask, annotated_frame, annotated_frame_with_mask_all
 
 
     
